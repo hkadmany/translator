@@ -1,0 +1,6 @@
+streamlit
+openai-whisper
+deep-translator
+ffmpeg-python
+torch
+setuptools
