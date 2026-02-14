@@ -23,6 +23,12 @@ with st.sidebar:
     bg_color = st.color_picker("Subtitle background color", "#000000")
     bg_opacity = st.slider("Background opacity %", 0, 100, 50, help="0 = fully transparent, 100 = fully solid")
 
+    st.header("Logo")
+    logo_file = st.file_uploader("Upload logo (PNG)", type=["png", "jpg", "jpeg"], key="logo")
+    logo_scale = st.slider("Logo size %", 5, 50, 15, help="Percentage of video width")
+    logo_opacity = st.slider("Logo opacity %", 10, 100, 100)
+    logo_position = st.selectbox("Logo position", ["Top-Left", "Top-Right", "Bottom-Left", "Bottom-Right"])
+
 # --- Main area ---
 uploaded = st.file_uploader("Upload a video", type=["mp4", "mkv", "avi", "mov"])
 
@@ -35,8 +41,15 @@ if uploaded and st.button("Generate Subtitled Video"):
 
     srt_path = None
     output_path = None
+    logo_path = None
 
     try:
+        # Save logo if provided
+        if logo_file:
+            logo_suffix = os.path.splitext(logo_file.name)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=logo_suffix) as tmp_logo:
+                tmp_logo.write(logo_file.read())
+                logo_path = tmp_logo.name
         # Step 1: Transcribe
         with st.status("Transcribing speech...", expanded=True) as status:
             segments = transcribe(input_path, model_size)
@@ -59,7 +72,13 @@ if uploaded and st.button("Generate Subtitled Video"):
         hex_with_alpha = f"{bg_color}{alpha:02x}"
 
         with st.status("Burning subtitles into video...", expanded=True) as status:
-            burn_subtitles(input_path, srt_path, output_path, font_size, hex_with_alpha)
+            burn_subtitles(
+                input_path, srt_path, output_path, font_size, hex_with_alpha,
+                logo_path=logo_path,
+                logo_scale=logo_scale,
+                logo_opacity=logo_opacity / 100,
+                logo_position=logo_position,
+            )
             status.update(label="Video processing complete", state="complete")
 
         # Step 5: Offer download
@@ -74,7 +93,7 @@ if uploaded and st.button("Generate Subtitled Video"):
 
     finally:
         # Cleanup temp files
-        for path in [input_path, srt_path, output_path]:
+        for path in [input_path, srt_path, output_path, logo_path]:
             if path:
                 try:
                     os.remove(path)
